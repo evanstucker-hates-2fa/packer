@@ -6,6 +6,11 @@ In this talk, I'll share my experiences with Packer. First, I'll go over the ini
 
 I've got about 30 minutes, but be warned: I am still new to Packer, so this may be a bit like the blind leading the blind...
 
+To ensure that this talk is relevant, can I get a show of hands?
+
+Who currently uses Packer?
+Who has ever created an operating system image?
+
 ## What is Packer?
 
 https://www.packer.io/intro/
@@ -29,19 +34,15 @@ Packer can create images for (almost?) all of these at once with a single comman
 
 ## How often do you create images?
 
-Most companies I've worked for create new images several months or even years after the latest version of an OS is released.
+Most companies I've worked for create new images several months or even years after the latest version of an OS is released. 
 
-## How often do you update your servers?
+## How often do you update your images?
 
-
-
-## Are the images really identical?
-
-Not really, but they're as close as you can get right now. AWS images will need to have cloud-init installed, vSphere images will need VMWare Tools, and VirtualBox images will need VirtualBox Guest Additions. But they're more similar than using community images on all of those platforms.
+With Packer you can roll your updates into new images easily and deploy servers with all the latest updates already installed. You don't have to wait for a Puppet run or a "yum update" to bring new servers up to date.
 
 ## Why shouldn't I just use community images?
 
-Community images are fine, just like "curl | sudo bash" is fine. They get the job done quickly and easily. However, if you work for a company that isn't 
+Community images are fine, just like "curl | sudo bash" is fine. They get the job done quickly and easily. However, some companies that are run by boring grown-ups think that consistency, control, and compliance are important, so unfortunately, not all of us have the luxury of using anything that boots.
 
 
 
