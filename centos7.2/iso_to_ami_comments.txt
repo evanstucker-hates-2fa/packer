@@ -1,0 +1,37 @@
+===== General Notes =====
+
+Don't run the JSON file through "jq" with sorting. Things in this file need to run in a certain order.
+
+===== Variables =====
+
+disk_size is arbitrary and really only needs to be big enough to install an OS without causing a warning.
+
+packer_tag should be equivalent to the name of the directory and is used to create the AMI Description.
+
+home is only compatible with Windows. If you're running this on OS X or Linux, you'll need to change this as well as a couple of other things in this file.
+
+===== Builders =====
+
+boot_command: I set "inst.gpt" to install using GPT instead of MBR partitioning, because we have too damn many partitions. Long story short, we have a separate /home, /tmp, and /var/tmp due to CIS security benchmarks, but when you create more than 4 partitions with MBR, it throws the extras in an extended partition, and when you have your root ("/") partition in an extended it causes issues with cloud-init growpart and resize part. Just kidding, that was still a long story. Summary: we have lots of partitions, so we use GPT. I've also removed the "<enter>" at the end of the boot commands because I was experiencing this bug: https://github.com/mitchellh/packer/issues/1796
+
+format is set to "ova", because that's what the amazon-import post-processor requires.
+
+guest_additions are ignored because our output is an AMI, not a VirtualBox. We don't want any software on it.
+
+guest_os_type is set to allegedly improve performance.
+
+Used "sata" to allegedly improve performance.
+
+Used vboxmanage to add more memory because if you skip the "swap" partition (as I have), the VM needs more memory to compensate. It will throw an error during install otherwise.
+
+===== Provisioners =====
+
+I snuck some commentary into these in the form of echo commands.
+
+Always use a "pause_before" on the first provisioner following a reboot, otherwise Packer will try to SSH into the server WHILE it's rebooting and things will hang indefinitely.
+
+===== Post-processors =====
+
+This builds the unencrypted AMIs in us-west-2. The vmimport role needs to have access to the S3 bucket. See the contents of //depot/techops/prodsys/aws/packer/policies for more info.
+
+

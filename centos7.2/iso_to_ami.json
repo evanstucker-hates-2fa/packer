@@ -1,0 +1,70 @@
+{
+  "builders": [
+    {
+      "boot_command": [
+        "<tab> inst.gpt inst.ks=http://{{.HTTPIP}}:{{.HTTPPort}}/centos7.2-ks.cfg"
+      ],
+      "disk_size": "8000",
+      "format": "ova",
+      "guest_additions_mode": "disable",
+      "guest_os_type": "RedHat_64",
+      "hard_drive_interface": "sata",
+      "http_directory": "{{user `packer_tag`}}",
+      "iso_checksum": "907e5755f824c5848b9c8efbb484f3cd945e93faa024bad6ba875226f9683b16",
+      "iso_checksum_type": "sha256",
+      "iso_interface": "sata",
+      "iso_url": "file:///{{user `home`}}/depot/techops/prodsys/aws/packer/{{user `packer_tag`}}/CentOS-7-x86_64-DVD-1511.iso",
+      "name": "centos7.2",
+      "shutdown_command": "shutdown -P now",
+      "ssh_password": "{{user `ssh_password`}}",
+      "ssh_username": "root",
+      "ssh_wait_timeout": "30m",
+      "type": "virtualbox-iso",
+      "vboxmanage": [
+        [
+          "modifyvm",
+          "{{.Name}}",
+          "--memory",
+          "1024"
+        ],
+        [
+          "modifyvm",
+          "{{.Name}}",
+          "--cpus",
+          "2"
+        ]
+      ]
+    }
+  ],
+  "provisioners": [
+    {
+      "inline": [
+        "yum upgrade -y",
+        "yum install -y cloud-init cloud-utils cloud-utils-growpart",
+        "echo 'Enabling SSH password authentication so we can log in with LDAP credentials, and setting default username to ec2-user.'",
+        "sed -i -r 's/ssh_pwauth:   0/ssh_pwauth:   1/' /etc/cloud/cloud.cfg",
+        "sed -i -r 's/    name: .*/    name: ec2-user/' /etc/cloud/cloud.cfg",
+        "echo 'Disabling NetworkManager because of a bug in CentOS 7.2 that is preventing resolv.conf from being configured until you manually restart networking. I am going to disable it for all EL7 OSes because we do not need it anyway. Not removing packages, because I do not believe in removing packages that the OS maintainers have chosen to install in a minimal config.'",
+        "systemctl disable NetworkManager.service",
+        "yum install -y https://yum.puppetlabs.com/puppetlabs-release-pc1-el-7.noarch.rpm",
+        "yum install -y puppet-agent"
+      ],
+      "type": "shell"
+    },
+    {
+      "script": "{{user `packer_tag`}}/base_config.sh",
+      "type": "shell"
+    }
+  ],
+  "variables": {
+    "access_key": "{{env `AWS_ACCESS_KEY_ID`}}",
+    "aws_account": "{{env `aws_account`}}",
+    "aws_region": "{{env `AWS_REGION`}}",
+    "home": "",
+    "packer_tag": "centos7.2",
+    "secret_key": "{{env `AWS_SECRET_ACCESS_KEY`}}",
+    "ssh_password": "",
+    "user": ""
+  }
+}
+

@@ -1,0 +1,187 @@
+{
+  "builders": [
+    {
+      "boot_command": [
+        "<tab> inst.gpt inst.ks=http://{{.HTTPIP}}:{{.HTTPPort}}/centos7.2-ks.cfg"
+      ],
+      "disk_size": "8000",
+      "format": "ova",
+      "guest_additions_mode": "disable",
+      "guest_os_type": "RedHat_64",
+      "hard_drive_interface": "sata",
+      "http_directory": "{{user `packer_tag`}}",
+      "iso_checksum": "907e5755f824c5848b9c8efbb484f3cd945e93faa024bad6ba875226f9683b16",
+      "iso_checksum_type": "sha256",
+      "iso_interface": "sata",
+      "iso_url": "file:///{{user `home`}}/depot/techops/prodsys/aws/packer/{{user `packer_tag`}}/CentOS-7-x86_64-DVD-1511.iso",
+      "name": "centos7.2",
+      "shutdown_command": "poweroff",
+      "ssh_password": "REDACTED",
+      "ssh_username": "root",
+      "ssh_wait_timeout": "30m",
+      "type": "virtualbox-iso",
+      "vboxmanage": [
+        [
+          "modifyvm",
+          "{{.Name}}",
+          "--memory",
+          "1024"
+        ],
+        [
+          "modifyvm",
+          "{{.Name}}",
+          "--cpus",
+          "2"
+        ]
+      ]
+    },
+    {
+      "boot_command": [
+        "<tab> inst.gpt inst.ks=http://{{.HTTPIP}}:{{.HTTPPort}}/ol7.2-ks.cfg"
+      ],
+      "disk_size": "8000",
+      "format": "ova",
+      "guest_additions_mode": "disable",
+      "guest_os_type": "RedHat_64",
+      "hard_drive_interface": "sata",
+      "http_directory": "{{user `packer_tag`}}",
+      "iso_checksum": "03E048F23D798C8E8E7935FAB76245C2F1341378",
+      "iso_checksum_type": "sha1",
+      "iso_interface": "sata",
+      "iso_url": "file:///{{user `home`}}/depot/techops/prodsys/aws/packer/{{user `packer_tag`}}/V100082-01.iso",
+      "name": "ol7.2",
+      "shutdown_command": "poweroff",
+      "ssh_password": "REDACTED",
+      "ssh_username": "root",
+      "ssh_wait_timeout": "30m",
+      "type": "virtualbox-iso",
+      "vboxmanage": [
+        [
+          "modifyvm",
+          "{{.Name}}",
+          "--memory",
+          "2048"
+        ],
+        [
+          "modifyvm",
+          "{{.Name}}",
+          "--cpus",
+          "2"
+        ]
+      ]
+    }
+  ],
+  "post-processors": [
+    {
+      "access_key": "{{user `devops_access_key`}}",
+      "region": "us-west-2",
+      "s3_bucket_name": "packer-REDACTED-us-west-2",
+      "secret_key": "{{user `devops_secret_key`}}",
+      "tags": {
+        "Description": "Created by {{user `user`}} with Packer using build {{build_name}} from the {{user `packer_tag`}} directory."
+      },
+      "type": "amazon-import"
+    },
+    {
+      "access_key": "{{user `iaas_access_key`}}",
+      "region": "us-west-2",
+      "s3_bucket_name": "packer-REDACTED-us-west-2",
+      "secret_key": "{{user `iaas_secret_key`}}",
+      "tags": {
+        "Description": "Created by {{user `user`}} with Packer using build {{build_name}} from the {{user `packer_tag`}} directory."
+      },
+      "type": "amazon-import"
+    }
+  ],
+  "provisioners": [
+    {
+      "inline": [
+        "yum upgrade -y"
+      ],
+      "only": [
+        "centos7.2"
+      ],
+      "type": "shell"
+    },
+    {
+      "inline": [
+        "echo 'Changing to regular (non-UEK) kernel because AWS import does not work with the UEK kernel.'",
+        "grub2-set-default 0",
+        "grub2-mkconfig -o /boot/grub2/grub.cfg",
+        "reboot"
+      ],
+      "only": [
+        "ol7.2"
+      ],
+      "type": "shell"
+    },
+    {
+      "inline": [
+        "echo 'Removing all kernel-uek* packages before upgrading, so that we do not switch back to the UEK kernel.'",
+        "yum remove -y kernel-uek*",
+        "yum upgrade -y"
+      ],
+      "only": [
+        "ol7.2"
+      ],
+      "pause_before": "10s",
+      "type": "shell"
+    },
+    {
+      "inline": [
+        "yum install -y cloud-init cloud-utils cloud-utils-growpart"
+      ],
+      "only": [
+        "centos7.2"
+      ],
+      "type": "shell"
+    },
+    {
+      "inline": [
+        "echo 'Installing EPEL and enabling ol7_optional_latest repo, because the Oracle repos are a mess.'",
+        "yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm",
+        "yum install --enablerepo=ol7_optional_latest -y cloud-init cloud-utils cloud-utils-growpart"
+      ],
+      "only": [
+        "ol7.2"
+      ],
+      "type": "shell"
+    },
+    {
+      "inline": [
+        "echo 'Enabling SSH password authentication so we can log in with LDAP credentials, and setting default username to ec2-user.'",
+        "sed -i -r 's/ssh_pwauth:   0/ssh_pwauth:   1/' /etc/cloud/cloud.cfg",
+        "sed -i -r 's/    name: .*/    name: ec2-user/' /etc/cloud/cloud.cfg"
+      ],
+      "type": "shell"
+    },
+    {
+      "inline": [
+        "echo 'Disabling NetworkManager because of a bug in CentOS 7.2 that is preventing resolv.conf from being configured until you manually restart networking. I am going to disable it for all EL7 OSes because we do not need it anyway. Not removing packages, because I do not believe in removing packages that the OS maintainers have chosen to install in a minimal config.'",
+        "systemctl disable NetworkManager.service"
+      ],
+      "type": "shell"
+    },
+    {
+      "inline": [
+        "yum install -y https://yum.puppetlabs.com/puppetlabs-release-pc1-el-7.noarch.rpm",
+        "yum install -y puppet-agent"
+      ],
+      "type": "shell"
+    },
+    {
+      "script": "{{user `packer_tag`}}/base_config.sh",
+      "type": "shell"
+    }
+  ],
+  "variables": {
+    "devops_access_key": "{{env `devops_access_key`}}",
+    "devops_secret_key": "{{env `devops_secret_key`}}",
+    "home": "",
+    "iaas_access_key": "{{env `iaas_access_key`}}",
+    "iaas_secret_key": "{{env `iaas_secret_key`}}",
+    "packer_tag": "el7",
+    "user": ""
+  }
+}
+
