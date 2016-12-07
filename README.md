@@ -194,3 +194,31 @@ Log into the builder again and find the VNC port:
 ss -4ln | grep -oE '59[0-9]{2}'
 
 Log into the QEMU VM with VNC so you can watch the kickstart and catch any errors. I recommend using TightVNC Viewer.
+
+# Encrypting Manually
+
+This requires that you have AWS profiles configured and the aws_switch script.
+
+```
+packer build -var "home=${HOME}" -var "user=${USER}" centos72/iso_to_ova.json
+read -p 'OVA file: ' ova_file
+
+for aws_profile_acct_hash in iaas:REDACTED devops:REDACTED; do
+    cut_profile=$(echo $aws_profile_acct_hash | cut -d: -f 1)
+    cut_acct_number=$(echo $aws_profile_acct_hash | cut -d: -f 2)
+    export AWS_REGION=us-west-2
+    export AWS_PROFILE=$cut_profile
+    export aws_account=$cut_acct_number
+    aws s3 cp $ova_file "s3://packer-${aws_account}-${AWS_REGION}/"
+    aws sts assume-role --role-arn "arn:aws:iam::${cut_acct_number}:role/vmimport" --role-session-name "Packer"
+    aws ec2 import-image --description "CentOS 7.2 OVA Import" --disk-containers "Description=centos72,Format=ova,UserBucket={S3Bucket=packer-${aws_account}-${AWS_REGION},S3Key=${ova_file}}"
+    # Check import status
+    #aws ec2 describe-import-image-tasks --import-task-ids import-ami-ffm8jl2d
+    read -p 'Centos 7.2 AMI ID: ' centos72_ami_id
+
+    for region in us-west-2 us-east-1; do
+        aws ec2 copy-image --source-region us-west-2 --source-image-id $centos72_ami_id --name "Centos 7.2" --encrypted --region $region
+    done
+done
+```
+
