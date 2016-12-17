@@ -1,6 +1,10 @@
 # packer
 
+# Preventable Perils Preceding Palliative Packer Paradigms
+
 ## Overview
+
+Preventable Perils Preceding Palliative Packer Paradigms
 
 In this talk, I'll share my experiences with Packer. First, I'll go over the initial questions of "what is Packer and why do we need it?", then I'll briefly go over the various components and how to cram them into a template. Then I'll entertain and delight you with my initial attempts to get it work, architectural mistakes, and finally, an example of a working Packer configuration that can take you from ISO images to Amazon Machine Images.
 
